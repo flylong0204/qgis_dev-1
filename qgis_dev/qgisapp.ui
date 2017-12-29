@@ -1,0 +1,226 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>QgisAppClass</class>
+ <widget class="QMainWindow" name="QgisAppClass">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>923</width>
+    <height>511</height>
+   </rect>
+  </property>
+  <property name="contextMenuPolicy">
+   <enum>Qt::ActionsContextMenu</enum>
+  </property>
+  <property name="windowTitle">
+   <string>QGIS Dev</string>
+  </property>
+  <widget class="QWidget" name="centralWidget"/>
+  <widget class="QMenuBar" name="menuBar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>923</width>
+     <height>26</height>
+    </rect>
+   </property>
+   <widget class="QMenu" name="menuProject">
+    <property name="title">
+     <string>项目</string>
+    </property>
+    <addaction name="actionOpen_Project"/>
+    <addaction name="actionNew_Project"/>
+    <addaction name="actionSave_Project"/>
+    <addaction name="actionSave_Project_As"/>
+   </widget>
+   <widget class="QMenu" name="menuMap">
+    <property name="enabled">
+     <bool>false</bool>
+    </property>
+    <property name="title">
+     <string>地图操作</string>
+    </property>
+    <addaction name="actionUnset_Tool"/>
+    <addaction name="actionZoom_Out"/>
+    <addaction name="actionZoom_In"/>
+    <addaction name="actionPan_Map"/>
+    <addaction name="actionMeasure"/>
+    <addaction name="actionIdentify"/>
+    <addaction name="actionAnnotation"/>
+   </widget>
+   <widget class="QMenu" name="menuLayer">
+    <property name="enabled">
+     <bool>false</bool>
+    </property>
+    <property name="title">
+     <string>图层</string>
+    </property>
+    <widget class="QMenu" name="menuAdd_Layer">
+     <property name="title">
+      <string>添加图层...</string>
+     </property>
+     <addaction name="actionAdd_Vector_Layer"/>
+    </widget>
+    <addaction name="actionShow_Layers"/>
+    <addaction name="menuAdd_Layer"/>
+    <addaction name="actionDelete_Layer"/>
+   </widget>
+   <addaction name="menuProject"/>
+   <addaction name="menuMap"/>
+   <addaction name="menuLayer"/>
+  </widget>
+  <widget class="QToolBar" name="mainToolBar">
+   <attribute name="toolBarArea">
+    <enum>TopToolBarArea</enum>
+   </attribute>
+   <attribute name="toolBarBreak">
+    <bool>false</bool>
+   </attribute>
+  </widget>
+  <widget class="QStatusBar" name="statusBar"/>
+  <widget class="QDockWidget" name="layersWindow">
+   <property name="enabled">
+    <bool>true</bool>
+   </property>
+   <property name="mouseTracking">
+    <bool>false</bool>
+   </property>
+   <property name="windowTitle">
+    <string>图层管理</string>
+   </property>
+   <attribute name="dockWidgetArea">
+    <number>1</number>
+   </attribute>
+   <widget class="QWidget" name="dockWidgetContents_2">
+    <layout class="QVBoxLayout" name="verticalLayout">
+     <property name="margin">
+      <number>0</number>
+     </property>
+     <item>
+      <widget class="QListWidget" name="layerList">
+       <property name="contextMenuPolicy">
+        <enum>Qt::CustomContextMenu</enum>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </widget>
+  </widget>
+  <action name="actionNew_Project">
+   <property name="text">
+    <string>新建项目</string>
+   </property>
+  </action>
+  <action name="actionOpen_Project">
+   <property name="text">
+    <string>打开项目...</string>
+   </property>
+   <property name="toolTip">
+    <string>打开项目</string>
+   </property>
+  </action>
+  <action name="actionSave_Project">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>保存项目</string>
+   </property>
+  </action>
+  <action name="actionSave_Project_As">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>项目另存为...</string>
+   </property>
+  </action>
+  <action name="actionZoom_Out">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>缩小地图</string>
+   </property>
+  </action>
+  <action name="actionZoom_In">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>放大地图</string>
+   </property>
+  </action>
+  <action name="actionPan_Map">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>平移地图</string>
+   </property>
+  </action>
+  <action name="actionMeasure">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>测距</string>
+   </property>
+  </action>
+  <action name="actionDelete_Layer">
+   <property name="text">
+    <string>删除图层</string>
+   </property>
+  </action>
+  <action name="actionAnnotation">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>图层标注</string>
+   </property>
+  </action>
+  <action name="actionAdd_Vector_Layer">
+   <property name="text">
+    <string>添加矢量图层</string>
+   </property>
+  </action>
+  <action name="actionShow_Layers">
+   <property name="text">
+    <string>显示图层窗口</string>
+   </property>
+  </action>
+  <action name="actionIdentify">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>图元识别</string>
+   </property>
+  </action>
+  <action name="actionUnset_Tool">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="enabled">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>退出当前操作</string>
+   </property>
+   <property name="iconText">
+    <string>不使用工具</string>
+   </property>
+  </action>
+ </widget>
+ <layoutdefault spacing="6" margin="11"/>
+ <resources>
+  <include location="qgisapp.qrc"/>
+ </resources>
+ <connections/>
+</ui>
