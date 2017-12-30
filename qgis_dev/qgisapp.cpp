@@ -86,6 +86,12 @@ void QgisApp::init()
 	connect(ui.actionMeasure, SIGNAL(triggered()), this, SLOT(measure()));
 	connect(ui.actionShow_Layers, SIGNAL(triggered()), this, SLOT(showLayersWindow()));
 	connect(ui.actionAdd_Vector_Layer, SIGNAL(triggered()), this, SLOT(addVectorLayer()));
+	//action命名没改
+	connect(ui.actionAddRaster, SIGNAL(triggered()), this, SLOT(addRasterLayer()));
+	connect(ui.actionAddWFS, SIGNAL(triggered()), this, SLOT(addWFSLayer()));
+	connect(ui.actionAddWCS, SIGNAL(triggered()), this, SLOT(addWCSLayer()));
+	connect(ui.actionAddWMS, SIGNAL(triggered()), this, SLOT(addWMSLayer()));
+	/////////////////以上
 	connect(ui.actionDelete_Layer, SIGNAL(triggered()), this, SLOT(deleteLayer()));
 	connect(ui.actionIdentify, SIGNAL(triggered()), this, SLOT(identify()));
 	connect(ui.actionAnnotation, SIGNAL(triggered()), this, SLOT(addAnnotation()));
@@ -462,10 +468,96 @@ void QgisApp::unsetMapTool()
 	}
 }
 
-void QgisApp::addRasterLayer()
+// 添加栅格图层
+void QgisDev::addRasterLayer()
 {
+	QString filename = QFileDialog::getOpenFileName(this, tr("添加栅格图层"), "", "*.jpg");
+	if(filename.isEmpty()) 
+		return;
+
+	QStringList temp = filename.split(QDir::separator());
+	QString basename = temp.at(temp.size() - 1);
+	QgsRasterLayer* rasLayer = new QgsRasterLayer(filename, basename, "ogr", false);
+	if(!rasLayer->isValid())
+	{
+		QMessageBox::critical(this, "error", "layer is invalid");
+		return;
+	}
+
+	mMapCanvas->freeze(true);
+	QgsMapLayerRegistry::instance()->addMapLayer(rasLayer);
+	
+	if(mMapCanvas->isFrozen())
+	{
+		mMapCanvas->freeze(false);
+		mMapCanvas->refresh();
+	}
+}
+
+// 添加WFS图层
+void QgisDev::addWFSLayer()
+{
+ if ( !mMapCanvas ) 
+	 return;
+
+    QDialog *wfs = dynamic_cast<QDialog*>( QgsProviderRegistry::instance()->selectWidget( QString( "WFS" ), this ) );
+    if ( !wfs )
+    {
+        QMessageBox::warning( this, tr( "WFS" ), tr( "Cannot get WFS select dialog from provider." ) );
+        return;
+    }
+    connect( wfs, SIGNAL( addWfsLayer( QString, QString ) ),
+             this, SLOT( addWfsLayer( const QString, const QString ) ) );
+
+    //re-enable wfs with extent setting: pass canvas info to source select
+    wfs->setProperty( "MapExtent", mMapCanvas->extent().toString() );
+    if ( mMapCanvas->mapSettings().hasCrsTransformEnabled() )
+    {
+        //if "on the fly" reprojection is active, pass canvas CRS
+        wfs->setProperty( "MapCRS", mMapCanvas->mapSettings().destinationCrs().authid() );
+    }
+
+    bool bkRenderFlag = mMapCanvas->renderFlag();
+    mMapCanvas->setRenderFlag( false );
+    wfs->exec();
+    mMapCanvas->setRenderFlag( bkRenderFlag );
+    delete wfs;   
+}
 
 
+
+// 添加WCS图层
+void QgisDev::addWCSLayer()
+{
+	QDialog *wcs = dynamic_cast<QDialog*>( QgsProviderRegistry::instance()->selectWidget( QString( "wcs" ), this ) );
+    if ( !wcs )
+    {
+        //QgisApp::instance()->statusBar()->showMessage( tr( "cannot add wms layer." ), 10 );
+    }
+
+    connect( wcs, SIGNAL( addRasterLayer( QString const &, QString const &, QString const & ) ),
+             this, SLOT( addOpenSourceRasterLayer( QString const &, QString const &, QString const & ) ) );
+
+    wcs->exec();
+
+    delete wcs;
+}
+
+// 添加WMS图层
+void QgisDev::addWMSLayer()
+{
+	QDialog *wms = dynamic_cast<QDialog*>( QgsProviderRegistry::instance()->selectWidget( QString( "wms" ), this ) );
+    if ( !wms )
+    {
+        //QgisApp::instance()->statusBar()->showMessage( tr( "cannot add wms layer." ), 10 );
+    }
+
+    connect( wms, SIGNAL( addRasterLayer( QString const &, QString const &, QString const & ) ),
+             this, SLOT( addOpenSourceRasterLayer( QString const &, QString const &, QString const & ) ) );
+
+    wms->exec();
+
+    delete wms;
 }
 
 void QgisApp::addVectorLayer()

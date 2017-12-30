@@ -67,8 +67,17 @@ private slots:
 	// 添加矢量图层
 	void addVectorLayer();
 
+	// 添加WFS图层
+	void addWFSLayer();
 	// 添加栅格图层
 	void addRasterLayer();
+	// 添加WCS图层
+	void addWCSLayer();
+	// 添加WMS图层
+	void addWMSLayer();
+
+	//**********添加图层，用于WMS
+	void addOpenSourceRasterLayer( const QString& url, const QString& basename, const QString& providerKey );
 
 	// 删除图层
 	void deleteLayer();
