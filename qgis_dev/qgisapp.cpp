@@ -477,7 +477,7 @@ void QgisDev::addRasterLayer()
 
 	QStringList temp = filename.split(QDir::separator());
 	QString basename = temp.at(temp.size() - 1);
-	QgsRasterLayer* rasLayer = new QgsRasterLayer(filename, basename, "ogr", false);
+	QgsRasterLayer* rasLayer = new QgsRasterLayer(filename, basename, "gdal", false);
 	if(!rasLayer->isValid())
 	{
 		QMessageBox::critical(this, "error", "layer is invalid");
