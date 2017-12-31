@@ -516,6 +516,7 @@ void QgisApp::addVectorLayer()
 
 void QgisApp::addRasterLayer()
 {
+	// 多种类型
 	QString filename = QFileDialog::getOpenFileName(this, tr("添加栅格图层"), "", mRasterFileFilter);
 	if(filename.isEmpty()) return;
 
