@@ -1,6 +1,8 @@
 #include "qgisapp.h"
 #include <stdio.h>
 
+QgisApp* QgisApp::smInstance = nullptr;
+
 QgisApp::QgisApp(QWidget *parent, Qt::WFlags flags)
 	: QMainWindow(parent, flags),
 	  mMapCanvas(nullptr),
@@ -13,6 +15,7 @@ QgisApp::QgisApp(QWidget *parent, Qt::WFlags flags)
 	  mMeasure(nullptr)
 {
 	ui.setupUi(this);
+	smInstance = this;
 	init();
 }
 
@@ -26,12 +29,34 @@ QgisApp::~QgisApp()
 	delete mZoomOut;
 	delete mMeasure;
 	delete mIdentify;
+	delete mAnnotation;
 	delete mMapCanvas;
 	delete mPopMenu;
 	delete mLayerTreeCanvasBridge;
 
 	QgsApplication::exitQgis();
 	delete QgsProject::instance();
+}
+
+void QgisApp::closeEvent(QCloseEvent *e)
+{
+	QMessageBox::StandardButton answer(QMessageBox::Discard);
+	if(QgsProject::instance()->isDirty())
+	{
+		answer = QMessageBox::information(
+			this, 
+			tr("是否退出？"),
+			tr("项目被修改但未保存，是否退出？"),
+			QMessageBox::Yes | QMessageBox::No,
+			QMessageBox::No );
+		if(QMessageBox::Yes == answer)
+		{
+			QgsProject::instance()->setDirty(false);
+			e->accept();
+		}
+		else
+			e->ignore();
+	}
 }
 
 void QgisApp::init()
@@ -48,6 +73,9 @@ void QgisApp::init()
 	mMapCanvas->setVisible(true);
 	mMapCanvas->setCanvasColor(QColor(220, 255, 255));
 	centralLayout->addWidget(mMapCanvas, 0, 0, 1, 1);
+
+	mRasterFileFilter = QgsProviderRegistry::instance()->fileRasterFilters();
+	mVectorFileFilter = QgsProviderRegistry::instance()->fileVectorFilters();
 
 	mLayerTreeCanvasBridge = new QgsLayerTreeMapCanvasBridge(
 		QgsProject::instance()->layerTreeRoot(), mMapCanvas, this);
@@ -70,9 +98,10 @@ void QgisApp::init()
 	mToolGroup->addAction(ui.actionZoom_In);
 	mToolGroup->addAction(ui.actionZoom_Out);
 	mToolGroup->addAction(ui.actionMeasure);
+	mToolGroup->addAction(ui.actionIdentify);
 	mToolGroup->addAction(ui.actionAnnotation);
 
-	mToolGroup->setExclusive(true);
+	mToolGroup->setExclusive(true);	// 互斥
 
 	// 设置菜单栏按钮的信号槽
 	connect(ui.actionNew_Project, SIGNAL(triggered()), this, SLOT(newProject()));
@@ -86,6 +115,7 @@ void QgisApp::init()
 	connect(ui.actionMeasure, SIGNAL(triggered()), this, SLOT(measure()));
 	connect(ui.actionShow_Layers, SIGNAL(triggered()), this, SLOT(showLayersWindow()));
 	connect(ui.actionAdd_Vector_Layer, SIGNAL(triggered()), this, SLOT(addVectorLayer()));
+	connect(ui.actionAdd_Raster_Layer, SIGNAL(triggered()), this, SLOT(addRasterLayer()));
 	connect(ui.actionDelete_Layer, SIGNAL(triggered()), this, SLOT(deleteLayer()));
 	connect(ui.actionIdentify, SIGNAL(triggered()), this, SLOT(identify()));
 	connect(ui.actionAnnotation, SIGNAL(triggered()), this, SLOT(addAnnotation()));
@@ -214,7 +244,7 @@ void QgisApp::saveProjectAs()
 
 void QgisApp::openProject()
 {
-	saveDirty();
+	saveDirty();	// 保存修改
 
 	QFileInfo fullPath;
 	QString path = QFileDialog::getOpenFileName(
@@ -248,7 +278,7 @@ void QgisApp::openProject()
 
 void QgisApp::closeProject()
 {
-	saveDirty();
+	saveDirty();	// 保存修改
 
 	mMapCanvas->freeze(true);
 	removeAnnotationItems();
@@ -379,8 +409,6 @@ void QgisApp::addToManagerWindow(QList<QgsMapLayer*> layers)
 	{
 		QListWidgetItem *item = new QListWidgetItem(ui.layerList);
 		item->setText((*it)->name());
-		//item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
-		//item->setCheckState(Qt::Checked);
 		ui.layerList->addItem(item);
 	}
 }
@@ -441,7 +469,7 @@ void QgisApp::addAnnotation()
 
 void QgisApp::identify()
 {
-	mMapCanvas->setMapTool(mIdentify);
+	setMapTool(mIdentify);
 }
 
 void QgisApp::setMapTool(QgsMapTool *tool)
@@ -462,15 +490,9 @@ void QgisApp::unsetMapTool()
 	}
 }
 
-void QgisApp::addRasterLayer()
-{
-
-
-}
-
 void QgisApp::addVectorLayer()
 {
-	QString filename = QFileDialog::getOpenFileName(this, tr("添加矢量图层"), "", "*.shp");
+	QString filename = QFileDialog::getOpenFileName(this, tr("添加矢量图层"), "", mVectorFileFilter);
 	if(filename.isEmpty()) return;
 
 	QStringList temp = filename.split(QDir::separator());
@@ -478,7 +500,7 @@ void QgisApp::addVectorLayer()
 	QgsVectorLayer* vecLayer = new QgsVectorLayer(filename, basename, "ogr", false);
 	if(!vecLayer->isValid())
 	{
-		QMessageBox::critical(this, "error", "layer is invalid");
+		QMessageBox::critical(this, "Error", "Layer is invalid");
 		return;
 	}
 
@@ -491,6 +513,31 @@ void QgisApp::addVectorLayer()
 		mMapCanvas->refresh();
 	}
 }
+
+void QgisApp::addRasterLayer()
+{
+	QString filename = QFileDialog::getOpenFileName(this, tr("添加栅格图层"), "", mRasterFileFilter);
+	if(filename.isEmpty()) return;
+
+	QStringList temp = filename.split(QDir::separator());
+	QString basename = temp.at(temp.size() - 1);
+	QgsRasterLayer* rasLayer = new QgsRasterLayer(filename, basename, "ogr", false);
+	if(!rasLayer->isValid())
+	{
+		QMessageBox::critical(this, "Error", "Layer is invalid");
+		return;
+	}
+
+	mMapCanvas->freeze(true);
+	QgsMapLayerRegistry::instance()->addMapLayer(rasLayer);
+
+	if(mMapCanvas->isFrozen())
+	{
+		mMapCanvas->freeze(false);
+		mMapCanvas->refresh();
+	}
+
+}// QgisApp::addRasterLayer()
 
 void QgisApp::deleteLayer()
 {

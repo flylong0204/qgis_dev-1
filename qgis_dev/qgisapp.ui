@@ -62,6 +62,7 @@
       <string>添加图层...</string>
      </property>
      <addaction name="actionAdd_Vector_Layer"/>
+     <addaction name="actionAdd_Raster_Layer"/>
     </widget>
     <addaction name="actionShow_Layers"/>
     <addaction name="menuAdd_Layer"/>
@@ -188,6 +189,9 @@
    </property>
   </action>
   <action name="actionShow_Layers">
+   <property name="enabled">
+    <bool>true</bool>
+   </property>
    <property name="text">
     <string>显示图层窗口</string>
    </property>
@@ -215,6 +219,11 @@
    </property>
    <property name="iconText">
     <string>不使用工具</string>
+   </property>
+  </action>
+  <action name="actionAdd_Raster_Layer">
+   <property name="text">
+    <string>添加栅格图层</string>
    </property>
   </action>
  </widget>

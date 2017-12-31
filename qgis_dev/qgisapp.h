@@ -12,10 +12,12 @@
 // qgis include
 #include <qgsmapcanvas.h>
 #include <qgsmaplayerregistry.h>
+#include <qgsproviderregistry.h>
 #include <qgsproject.h>
 #include <qgslayertreeregistrybridge.h>
 #include <qgslayertreemapcanvasbridge.h>
 #include <qgsvectorlayer.h>
+#include <qgsrasterlayer.h>
 #include <qgsmaptoolpan.h>
 #include <qgsmaptoolzoom.h>
 #include "qgsmeasuretool.h"
@@ -32,6 +34,11 @@ class QgisApp : public QMainWindow
 public:
 	QgisApp(QWidget *parent = 0, Qt::WFlags flags = 0);
 	~QgisApp();
+
+	// 返回QgisApp实例
+	static QgisApp* instance() {return smInstance;}
+
+	void closeEvent(QCloseEvent *e) override;
 
 private slots:
 	// 新建项目
@@ -129,6 +136,8 @@ private:
 private:
 	Ui::QgisAppClass ui;
 
+	// 单例实例
+	static QgisApp* smInstance;
 	// 工具组
 	QActionGroup* mToolGroup;
 	// 地图画布
@@ -149,6 +158,10 @@ private:
 	QgsMapTool* mAnnotation;
 	// 右键弹出菜单
 	QMenu* mPopMenu;
+
+	// 矢量与栅格图层类型
+	QString mVectorFileFilter;
+    QString mRasterFileFilter;
 
 };
 
