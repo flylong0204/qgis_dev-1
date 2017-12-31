@@ -43,6 +43,7 @@ public:
     QAction *actionShow_Layers;
     QAction *actionIdentify;
     QAction *actionUnset_Tool;
+    QAction *actionAdd_Raster_Layer;
     QWidget *centralWidget;
     QMenuBar *menuBar;
     QMenu *menuProject;
@@ -93,6 +94,7 @@ public:
         actionAdd_Vector_Layer->setObjectName(QString::fromUtf8("actionAdd_Vector_Layer"));
         actionShow_Layers = new QAction(QgisAppClass);
         actionShow_Layers->setObjectName(QString::fromUtf8("actionShow_Layers"));
+        actionShow_Layers->setEnabled(true);
         actionIdentify = new QAction(QgisAppClass);
         actionIdentify->setObjectName(QString::fromUtf8("actionIdentify"));
         actionIdentify->setCheckable(true);
@@ -101,6 +103,8 @@ public:
         actionUnset_Tool->setCheckable(true);
         actionUnset_Tool->setChecked(true);
         actionUnset_Tool->setEnabled(true);
+        actionAdd_Raster_Layer = new QAction(QgisAppClass);
+        actionAdd_Raster_Layer->setObjectName(QString::fromUtf8("actionAdd_Raster_Layer"));
         centralWidget = new QWidget(QgisAppClass);
         centralWidget->setObjectName(QString::fromUtf8("centralWidget"));
         QgisAppClass->setCentralWidget(centralWidget);
@@ -161,6 +165,7 @@ public:
         menuLayer->addAction(menuAdd_Layer->menuAction());
         menuLayer->addAction(actionDelete_Layer);
         menuAdd_Layer->addAction(actionAdd_Vector_Layer);
+        menuAdd_Layer->addAction(actionAdd_Raster_Layer);
 
         retranslateUi(QgisAppClass);
 
@@ -188,6 +193,7 @@ public:
         actionIdentify->setText(QApplication::translate("QgisAppClass", "\345\233\276\345\205\203\350\257\206\345\210\253", 0, QApplication::UnicodeUTF8));
         actionUnset_Tool->setText(QApplication::translate("QgisAppClass", "\351\200\200\345\207\272\345\275\223\345\211\215\346\223\215\344\275\234", 0, QApplication::UnicodeUTF8));
         actionUnset_Tool->setIconText(QApplication::translate("QgisAppClass", "\344\270\215\344\275\277\347\224\250\345\267\245\345\205\267", 0, QApplication::UnicodeUTF8));
+        actionAdd_Raster_Layer->setText(QApplication::translate("QgisAppClass", "\346\267\273\345\212\240\346\240\205\346\240\274\345\233\276\345\261\202", 0, QApplication::UnicodeUTF8));
         menuProject->setTitle(QApplication::translate("QgisAppClass", "\351\241\271\347\233\256", 0, QApplication::UnicodeUTF8));
         menuMap->setTitle(QApplication::translate("QgisAppClass", "\345\234\260\345\233\276\346\223\215\344\275\234", 0, QApplication::UnicodeUTF8));
         menuLayer->setTitle(QApplication::translate("QgisAppClass", "\345\233\276\345\261\202", 0, QApplication::UnicodeUTF8));

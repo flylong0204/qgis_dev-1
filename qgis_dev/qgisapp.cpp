@@ -1,6 +1,8 @@
 #include "qgisapp.h"
 #include <stdio.h>
 
+QgisApp* QgisApp::smInstance = nullptr;
+
 QgisApp::QgisApp(QWidget *parent, Qt::WFlags flags)
 	: QMainWindow(parent, flags),
 	  mMapCanvas(nullptr),
@@ -13,6 +15,7 @@ QgisApp::QgisApp(QWidget *parent, Qt::WFlags flags)
 	  mMeasure(nullptr)
 {
 	ui.setupUi(this);
+	smInstance = this;
 	init();
 }
 
@@ -26,6 +29,7 @@ QgisApp::~QgisApp()
 	delete mZoomOut;
 	delete mMeasure;
 	delete mIdentify;
+	delete mAnnotation;
 	delete mMapCanvas;
 	delete mPopMenu;
 	delete mLayerTreeCanvasBridge;
@@ -34,9 +38,30 @@ QgisApp::~QgisApp()
 	delete QgsProject::instance();
 }
 
+void QgisApp::closeEvent(QCloseEvent *e)
+{
+	QMessageBox::StandardButton answer(QMessageBox::Discard);
+	if(QgsProject::instance()->isDirty())
+	{
+		answer = QMessageBox::information(
+			this, 
+			tr("æ˜¯å¦é€€å‡ºï¼Ÿ"),
+			tr("é¡¹ç›®è¢«ä¿®æ”¹ä½†æœªä¿å­˜ï¼Œæ˜¯å¦é€€å‡ºï¼Ÿ"),
+			QMessageBox::Yes | QMessageBox::No,
+			QMessageBox::No );
+		if(QMessageBox::Yes == answer)
+		{
+			QgsProject::instance()->setDirty(false);
+			e->accept();
+		}
+		else
+			e->ignore();
+	}
+}
+
 void QgisApp::init()
 {
-	QTextCodec::setCodecForTr(QTextCodec::codecForName("GBK"));	// ÉèÖÃÖĞÎÄ±àÂë
+	QTextCodec::setCodecForTr(QTextCodec::codecForName("GBK"));	// è®¾ç½®ä¸­æ–‡ç¼–ç 
 
 	QWidget *centralWidget = this->centralWidget();
 	QGridLayout *centralLayout = new QGridLayout( centralWidget );
@@ -44,10 +69,13 @@ void QgisApp::init()
 	centralLayout->setContentsMargins( 0, 0, 0, 0 );
 
 	mMapCanvas = new QgsMapCanvas( centralWidget, "theMapCanvas" );
-	mMapCanvas->enableAntiAliasing(true);	// ¿ªÆô·´¾â³İ
+	mMapCanvas->enableAntiAliasing(true);	// å¼€å¯åé”¯é½¿
 	mMapCanvas->setVisible(true);
 	mMapCanvas->setCanvasColor(QColor(220, 255, 255));
 	centralLayout->addWidget(mMapCanvas, 0, 0, 1, 1);
+
+	mRasterFileFilter = QgsProviderRegistry::instance()->fileRasterFilters();
+	mVectorFileFilter = QgsProviderRegistry::instance()->fileVectorFilters();
 
 	mLayerTreeCanvasBridge = new QgsLayerTreeMapCanvasBridge(
 		QgsProject::instance()->layerTreeRoot(), mMapCanvas, this);
@@ -55,7 +83,7 @@ void QgisApp::init()
 	connect(QgsProject::instance(), SIGNAL(writeProject(QDomDocument&)), mLayerTreeCanvasBridge, SLOT(writeProject(QDomDocument&)));
 	connect(QgsProject::instance(), SIGNAL(readProject(QDomDocument)), mLayerTreeCanvasBridge, SLOT(readProject(QDomDocument)));
 
-	// ³õÊ¼»¯¸÷¸öµØÍ¼¹¤¾ß
+	// åˆå§‹åŒ–å„ä¸ªåœ°å›¾å·¥å…·
 	mPan = new QgsMapToolPan(mMapCanvas);
 	mZoomOut = new QgsMapToolZoom(mMapCanvas, true);
 	mZoomIn = new QgsMapToolZoom(mMapCanvas, false);
@@ -63,18 +91,19 @@ void QgisApp::init()
 	mIdentify = new QgsMapToolIdentifyAction(mMapCanvas);
 	mAnnotation = new QgsMapToolAnnotation(mMapCanvas);
 
-	// ÉèÖÃ¸÷¸ö¹¤¾ßµÄ²Ëµ¥À¸°´Å¥»¥³â
+	// è®¾ç½®å„ä¸ªå·¥å…·çš„èœå•æ æŒ‰é’®äº’æ–¥
 	mToolGroup = new QActionGroup(this);
 	mToolGroup->addAction(ui.actionUnset_Tool);
 	mToolGroup->addAction(ui.actionPan_Map);
 	mToolGroup->addAction(ui.actionZoom_In);
 	mToolGroup->addAction(ui.actionZoom_Out);
 	mToolGroup->addAction(ui.actionMeasure);
+	mToolGroup->addAction(ui.actionIdentify);
 	mToolGroup->addAction(ui.actionAnnotation);
 
-	mToolGroup->setExclusive(true);
+	mToolGroup->setExclusive(true);	// äº’æ–¥
 
-	// ÉèÖÃ²Ëµ¥À¸°´Å¥µÄĞÅºÅ²Û
+	// è®¾ç½®èœå•æ æŒ‰é’®çš„ä¿¡å·æ§½
 	connect(ui.actionNew_Project, SIGNAL(triggered()), this, SLOT(newProject()));
 	connect(ui.actionSave_Project, SIGNAL(triggered()), this, SLOT(saveProject()));
 	connect(ui.actionSave_Project_As, SIGNAL(triggered()), this, SLOT(saveProjectAs()));
@@ -86,32 +115,30 @@ void QgisApp::init()
 	connect(ui.actionMeasure, SIGNAL(triggered()), this, SLOT(measure()));
 	connect(ui.actionShow_Layers, SIGNAL(triggered()), this, SLOT(showLayersWindow()));
 	connect(ui.actionAdd_Vector_Layer, SIGNAL(triggered()), this, SLOT(addVectorLayer()));
-	//actionÃüÃûÃ»¸Ä
-	connect(ui.actionAddRaster, SIGNAL(triggered()), this, SLOT(addRasterLayer()));
-	connect(ui.actionAddWFS, SIGNAL(triggered()), this, SLOT(addWFSLayer()));
-	connect(ui.actionAddWCS, SIGNAL(triggered()), this, SLOT(addWCSLayer()));
-	connect(ui.actionAddWMS, SIGNAL(triggered()), this, SLOT(addWMSLayer()));
-	/////////////////ÒÔÉÏ
+	connect(ui.actionAdd_WFS, SIGNAL(triggered()), this, SLOT(addWFSLayer()));
+	connect(ui.actionAdd_WCS, SIGNAL(triggered()), this, SLOT(addWCSLayer()));
+	connect(ui.actionAdd_WMS, SIGNAL(triggered()), this, SLOT(addWMSLayer()));
+	connect(ui.actionAdd_Raster_Layer, SIGNAL(triggered()), this, SLOT(addRasterLayer()));
 	connect(ui.actionDelete_Layer, SIGNAL(triggered()), this, SLOT(deleteLayer()));
 	connect(ui.actionIdentify, SIGNAL(triggered()), this, SLOT(identify()));
 	connect(ui.actionAnnotation, SIGNAL(triggered()), this, SLOT(addAnnotation()));
 
-	// ÏîÄ¿±»ĞŞ¸ÄÊ±ÏîÄ¿±»±ê¼ÇÎª¡°Ôà¡±×´Ì¬
+	// é¡¹ç›®è¢«ä¿®æ”¹æ—¶é¡¹ç›®è¢«æ ‡è®°ä¸ºâ€œè„â€çŠ¶æ€
 	connect(mMapCanvas, SIGNAL(layersChanged()), this, SLOT(markDirty()));
 
-	// Í¼²ã¹ÜÀíÆ÷
+	// å›¾å±‚ç®¡ç†å™¨
 	connect(ui.layerList, SIGNAL( itemSelectionChanged()), this, SLOT(layerSelectionChanged()));
 	connect(QgsMapLayerRegistry::instance(), SIGNAL(layersAdded(QList<QgsMapLayer*>)),
 			this, SLOT(addToManagerWindow(QList<QgsMapLayer*>)));
 
-	// ¶ÁĞ´±ê×¢Ïà¹Ø²Ûº¯Êı
+	// è¯»å†™æ ‡æ³¨ç›¸å…³æ§½å‡½æ•°
 	connect(QgsProject::instance(), SIGNAL(readProject(const QDomDocument&)), 
 			this, SLOT(loadAnnotationItemsFromProject(const QDomDocument&)));
 	connect(QgsProject::instance(), SIGNAL(writeProject(QDomDocument&)),
 			this, SLOT(writeAnnotationItemsToProject(QDomDocument&)));
 
 
-	// ÉèÖÃÍ¼²ã¹ÜÀíÆ÷µÄÓÒ¼ü²Ëµ¥
+	// è®¾ç½®å›¾å±‚ç®¡ç†å™¨çš„å³é”®èœå•
 	mPopMenu = new QMenu(ui.layerList);
 	mPopMenu->addMenu(ui.menuAdd_Layer);
 	mPopMenu->addAction(ui.actionDelete_Layer);
@@ -135,7 +162,7 @@ void QgisApp::setTitle()
 	QString fileName = QgsProject::instance()->fileName();
 
 	if(fileName.isNull())
-		caption += " - " + tr("Î´ÃüÃû");
+		caption += " - " + tr("æœªå‘½å");
 	else
 		caption += " - " + QFileInfo(fileName).completeBaseName();
 
@@ -153,7 +180,7 @@ void QgisApp::newProject()
 
 	/*mMapCanvas->setSelectionColor(QColor(255, 255, 0, 255));
 	mMapCanvas->setCanvasColor(QColor(255, 255, 255));*/
-	prj->setDirty(false);					// ĞÂ½¨ÏîÄ¿Ó¦ÎªÎ´ĞŞ¸Ä×´Ì¬
+	prj->setDirty(false);					// æ–°å»ºé¡¹ç›®åº”ä¸ºæœªä¿®æ”¹çŠ¶æ€
 	
 	mMapCanvas->freeze(false);
 	mMapCanvas->refresh();
@@ -165,13 +192,13 @@ void QgisApp::newProject()
 
 bool QgisApp::saveProject()
 {
-	// Èç¹ûÃ»ÓĞÏîÄ¿ÎÄ¼şÂ·¾¶£¬ÌáÊ¾ÓÃ»§Ñ¡ÔñÂ·¾¶
+	// å¦‚æœæ²¡æœ‰é¡¹ç›®æ–‡ä»¶è·¯å¾„ï¼Œæç¤ºç”¨æˆ·é€‰æ‹©è·¯å¾„
 	if(QgsProject::instance()->fileName().isNull())
 	{
 		QFileInfo fullPath;
 		QString path = QFileDialog::getSaveFileName(
 						this,
-						tr("Ñ¡ÔñQGisÏîÄ¿µÄ±£´æÎ»ÖÃ"),
+						tr("é€‰æ‹©QGisé¡¹ç›®çš„ä¿å­˜ä½ç½®"),
 						NULL,
 						tr("QGIS files") + " (*.qgs *.QGS)");
 
@@ -190,27 +217,27 @@ bool QgisApp::saveProject()
 	{
 		QFileInfo fi(QgsProject::instance()->fileName());
 
-		// ¼ì²éÊÇ·ñ¿ÉĞ´
+		// æ£€æŸ¥æ˜¯å¦å¯å†™
 		if(fi.exists() && !fi.isWritable())
 		{
-			QMessageBox::critical(this, tr("´íÎó"), tr("ÎŞ·¨±£´æÏîÄ¿ÎÄ¼ş¡£"));
+			QMessageBox::critical(this, tr("é”™è¯¯"), tr("æ— æ³•ä¿å­˜é¡¹ç›®æ–‡ä»¶ã€‚"));
 			return false;
 		}
 	}
 
 	setTitle();
-	// Ğ´ÎÄ¼ş
+	// å†™æ–‡ä»¶
 	return QgsProject::instance()->write();
 }
 
 void QgisApp::saveProjectAs()
 {
-	// ½«ÏîÄ¿ÎÄ¼şÖÃnull£¬È»ºóµ÷ÓÃsaveProject¼´¿ÉÊµÏÖÁí´æÎª
+	// å°†é¡¹ç›®æ–‡ä»¶ç½®nullï¼Œç„¶åè°ƒç”¨saveProjectå³å¯å®ç°å¦å­˜ä¸º
 	QString fileNameBak = QgsProject::instance()->fileName();
 	bool dirtyBak = QgsProject::instance()->isDirty();
 
 	QgsProject::instance()->setFileName(NULL);
-	if(!saveProject())		// Î´³É¹¦Áí´æÎªÔò»Ö¸´ÎÄ¼şÃû
+	if(!saveProject())		// æœªæˆåŠŸå¦å­˜ä¸ºåˆ™æ¢å¤æ–‡ä»¶å
 	{
 		QgsProject::instance()->setFileName(fileNameBak);
 		QgsProject::instance()->setDirty(dirtyBak);
@@ -220,12 +247,12 @@ void QgisApp::saveProjectAs()
 
 void QgisApp::openProject()
 {
-	saveDirty();
+	saveDirty();	// ä¿å­˜ä¿®æ”¹
 
 	QFileInfo fullPath;
 	QString path = QFileDialog::getOpenFileName(
 					this,
-					tr("Ñ¡ÔñÒ»¸öQGisÏîÄ¿ÎÄ¼ş"),
+					tr("é€‰æ‹©ä¸€ä¸ªQGisé¡¹ç›®æ–‡ä»¶"),
 					NULL,
 					tr("QGIS files") + " (*.qgs *.QGS)");
 	if(path.isEmpty())
@@ -240,7 +267,7 @@ void QgisApp::openProject()
 	closeProject();
 
 	if(!QgsProject::instance()->read(fullPath))
-		QMessageBox::critical(this, tr("´íÎó"), tr("ÎŞ·¨¶ÁÈëÏîÄ¿ÎÄ¼ş¡£"));
+		QMessageBox::critical(this, tr("é”™è¯¯"), tr("æ— æ³•è¯»å…¥é¡¹ç›®æ–‡ä»¶ã€‚"));
 
 	setTitle();
 	
@@ -254,7 +281,7 @@ void QgisApp::openProject()
 
 void QgisApp::closeProject()
 {
-	saveDirty();
+	saveDirty();	// ä¿å­˜ä¿®æ”¹
 
 	mMapCanvas->freeze(true);
 	removeAnnotationItems();
@@ -369,8 +396,8 @@ void QgisApp::saveDirty()
 	{
 		answer = QMessageBox::information(
 			this, 
-			tr("±£´æ£¿"),
-			tr("ÏîÄ¿ÒÑ±»ĞŞ¸Ä£¬ÊÇ·ñ±£´æĞŞ¸Ä£¿"),
+			tr("ä¿å­˜ï¼Ÿ"),
+			tr("é¡¹ç›®å·²è¢«ä¿®æ”¹ï¼Œæ˜¯å¦ä¿å­˜ä¿®æ”¹ï¼Ÿ"),
 			QMessageBox::Save | QMessageBox::Cancel | QMessageBox::Discard,
 			QMessageBox::Save );
 		if(QMessageBox::Save == answer)
@@ -385,8 +412,6 @@ void QgisApp::addToManagerWindow(QList<QgsMapLayer*> layers)
 	{
 		QListWidgetItem *item = new QListWidgetItem(ui.layerList);
 		item->setText((*it)->name());
-		//item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
-		//item->setCheckState(Qt::Checked);
 		ui.layerList->addItem(item);
 	}
 }
@@ -447,7 +472,7 @@ void QgisApp::addAnnotation()
 
 void QgisApp::identify()
 {
-	mMapCanvas->setMapTool(mIdentify);
+	setMapTool(mIdentify);
 }
 
 void QgisApp::setMapTool(QgsMapTool *tool)
@@ -468,33 +493,7 @@ void QgisApp::unsetMapTool()
 	}
 }
 
-// Ìí¼ÓÕ¤¸ñÍ¼²ã
-void QgisDev::addRasterLayer()
-{
-	QString filename = QFileDialog::getOpenFileName(this, tr("Ìí¼ÓÕ¤¸ñÍ¼²ã"), "", "*.jpg");
-	if(filename.isEmpty()) 
-		return;
-
-	QStringList temp = filename.split(QDir::separator());
-	QString basename = temp.at(temp.size() - 1);
-	QgsRasterLayer* rasLayer = new QgsRasterLayer(filename, basename, "gdal", false);
-	if(!rasLayer->isValid())
-	{
-		QMessageBox::critical(this, "error", "layer is invalid");
-		return;
-	}
-
-	mMapCanvas->freeze(true);
-	QgsMapLayerRegistry::instance()->addMapLayer(rasLayer);
-	
-	if(mMapCanvas->isFrozen())
-	{
-		mMapCanvas->freeze(false);
-		mMapCanvas->refresh();
-	}
-}
-
-// Ìí¼ÓWFSÍ¼²ã
+// æ·»åŠ WFSå›¾å±‚
 void QgisDev::addWFSLayer()
 {
  if ( !mMapCanvas ) 
@@ -524,9 +523,7 @@ void QgisDev::addWFSLayer()
     delete wfs;   
 }
 
-
-
-// Ìí¼ÓWCSÍ¼²ã
+// æ·»åŠ WCSå›¾å±‚
 void QgisDev::addWCSLayer()
 {
 	QDialog *wcs = dynamic_cast<QDialog*>( QgsProviderRegistry::instance()->selectWidget( QString( "wcs" ), this ) );
@@ -543,7 +540,7 @@ void QgisDev::addWCSLayer()
     delete wcs;
 }
 
-// Ìí¼ÓWMSÍ¼²ã
+// æ·»åŠ WMSå›¾å±‚
 void QgisDev::addWMSLayer()
 {
 	QDialog *wms = dynamic_cast<QDialog*>( QgsProviderRegistry::instance()->selectWidget( QString( "wms" ), this ) );
@@ -562,7 +559,7 @@ void QgisDev::addWMSLayer()
 
 void QgisApp::addVectorLayer()
 {
-	QString filename = QFileDialog::getOpenFileName(this, tr("Ìí¼ÓÊ¸Á¿Í¼²ã"), "", "*.shp");
+	QString filename = QFileDialog::getOpenFileName(this, tr("æ·»åŠ çŸ¢é‡å›¾å±‚"), "", mVectorFileFilter);
 	if(filename.isEmpty()) return;
 
 	QStringList temp = filename.split(QDir::separator());
@@ -570,7 +567,7 @@ void QgisApp::addVectorLayer()
 	QgsVectorLayer* vecLayer = new QgsVectorLayer(filename, basename, "ogr", false);
 	if(!vecLayer->isValid())
 	{
-		QMessageBox::critical(this, "error", "layer is invalid");
+		QMessageBox::critical(this, "Error", "Layer is invalid");
 		return;
 	}
 
@@ -584,6 +581,31 @@ void QgisApp::addVectorLayer()
 	}
 }
 
+void QgisApp::addRasterLayer()
+{
+	QString filename = QFileDialog::getOpenFileName(this, tr("æ·»åŠ æ …æ ¼å›¾å±‚"), "", mRasterFileFilter);
+	if(filename.isEmpty()) return;
+
+	QStringList temp = filename.split(QDir::separator());
+	QString basename = temp.at(temp.size() - 1);
+	QgsRasterLayer* rasLayer = new QgsRasterLayer(filename, basename, "ogr", false);
+	if(!rasLayer->isValid())
+	{
+		QMessageBox::critical(this, "Error", "Layer is invalid");
+		return;
+	}
+
+	mMapCanvas->freeze(true);
+	QgsMapLayerRegistry::instance()->addMapLayer(rasLayer);
+
+	if(mMapCanvas->isFrozen())
+	{
+		mMapCanvas->freeze(false);
+		mMapCanvas->refresh();
+	}
+
+}// QgisApp::addRasterLayer()
+
 void QgisApp::deleteLayer()
 {
 	auto currentItem = ui.layerList->selectedItems()[0];
@@ -591,8 +613,8 @@ void QgisApp::deleteLayer()
 	{
 		QMessageBox::StandardButton answer = QMessageBox::information(
 			this, 
-			tr("ÊÇ·ñÉ¾³ıÍ¼²ã"),
-			tr("ÊÇ·ñÉ¾³ıÒÔÏÂÍ¼²ã£º\n")+currentItem->text(),
+			tr("æ˜¯å¦åˆ é™¤å›¾å±‚"),
+			tr("æ˜¯å¦åˆ é™¤ä»¥ä¸‹å›¾å±‚ï¼š\n")+currentItem->text(),
 			QMessageBox::Ok | QMessageBox::Cancel,
 			QMessageBox::Cancel );
 		if(answer == QMessageBox::Ok)
